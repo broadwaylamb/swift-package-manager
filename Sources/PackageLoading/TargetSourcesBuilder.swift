@@ -396,6 +396,15 @@ public struct FileRuleDescription {
         )
     }()
 
+    /// The rust compiler rule.
+    public static var rust: FileRuleDescription = {
+        .init(
+            rule: .compile,
+            toolsVersion: .minimumRequired,
+            fileTypes: ["rs"]
+        )
+    }()
+
     /// The rule for detecting modulemap files.
     public static var modulemap: FileRuleDescription = {
         .init(
@@ -419,6 +428,7 @@ public struct FileRuleDescription {
         swift,
         clang,
         asm,
+        rust,
         modulemap,
         header,
     ]

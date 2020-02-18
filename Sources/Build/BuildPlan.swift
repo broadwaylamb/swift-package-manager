@@ -92,7 +92,7 @@ extension BuildParameters {
     }
 }
 
-/// A target description which can either be for a Swift or Clang target.
+/// A target description which can either be for a Swift, Clang, or Rust target.
 public enum TargetBuildDescription {
 
     /// Swift target description.
@@ -101,12 +101,16 @@ public enum TargetBuildDescription {
     /// Clang target description.
     case clang(ClangTargetBuildDescription)
 
+    case rust(RustcTargetBuildDescription)
+
     /// The objects in this target.
     var objects: [AbsolutePath] {
         switch self {
         case .swift(let target):
             return target.objects
         case .clang(let target):
+            return target.objects
+        case .rust(let target):
             return target.objects
         }
     }
@@ -118,6 +122,8 @@ public enum TargetBuildDescription {
             return target.bundlePath
         case .clang(let target):
             return target.bundlePath
+        case .rust(let target):
+            return target.bundlePath
         }
     }
 
@@ -126,6 +132,8 @@ public enum TargetBuildDescription {
         case .swift(let target):
             return target.target
         case .clang(let target):
+            return target.target
+        case .rust(let target):
             return target.target
         }
     }
@@ -136,6 +144,8 @@ public enum TargetBuildDescription {
         case .swift(let target):
             return target.libraryBinaryPaths
         case .clang(let target):
+            return target.libraryBinaryPaths
+        case .rust(let target):
             return target.libraryBinaryPaths
         }
     }
@@ -857,6 +867,53 @@ public final class SwiftTargetBuildDescription {
     }
 }
 
+/// Target description for a Rust target.
+public final class RustcTargetBuildDescription {
+
+    /// The target described by this target.
+    public let target: ResolvedTarget
+
+    /// The underlying rustc target.
+    public var rustcTarget: RustcTarget {
+        return target.underlyingTarget as! RustcTarget
+    }
+
+    /// The build parameters.
+    let buildParameters: BuildParameters
+
+    /// Path to the temporary directory for this target.
+    let tempsPath: AbsolutePath
+
+    /// Path to the bundle generated for this module (if any).
+    var bundlePath: AbsolutePath? {
+        buildParameters.bundlePath(for: target)
+    }
+
+    /// The objects in this target.
+    public var objects: [AbsolutePath] {
+        [tempsPath.appending(RelativePath("\(target.c99name).o"))]
+    }
+
+    var rlibOutputPath: AbsolutePath {
+        buildParameters.buildPath.appending(component: "\(target.c99name).rlib")
+    }
+
+    /// Paths to the binary libraries the target depends on.
+    fileprivate(set) var libraryBinaryPaths: Set<AbsolutePath> = []
+
+    init(target: ResolvedTarget,
+         buildParameters: BuildParameters,
+         fileSystem: FileSystem = localFileSystem) throws {
+        assert(target.underlyingTarget is RustcTarget,
+               "underlying target type mismatch \(target)")
+        self.target = target
+        self.buildParameters = buildParameters
+        self.tempsPath = buildParameters
+            .buildPath
+            .appending(component: target.c99name + ".build")
+    }
+}
+
 /// The build description for a product.
 public final class ProductBuildDescription {
 
@@ -1265,6 +1322,11 @@ public class BuildPlan {
                     target: target,
                     buildParameters: buildParameters,
                     fileSystem: fileSystem))
+             case is RustcTarget:
+                targetMap[target] = try .rust(RustcTargetBuildDescription(
+                    target: target,
+                    buildParameters: buildParameters,
+                    fileSystem: fileSystem))
              case is SystemLibraryTarget, is BinaryTarget:
                  break
              default:
@@ -1346,6 +1408,8 @@ public class BuildPlan {
                 try plan(swiftTarget: target)
             case .clang(let target):
                 plan(clangTarget: target)
+            case .rust(let target):
+                plan(rustTarget: target)
             }
         }
 
@@ -1541,6 +1605,13 @@ public class BuildPlan {
         }
     }
 
+    /// Plan a Rust target.
+    private func plan(rustTarget: RustcTargetBuildDescription) {
+        for case .target(let dependency, _) in rustTarget.target.recursiveDependencies(satisfying: buildEnvironment) {
+            // TODO
+        }
+    }
+
     /// Plan a Swift target.
     private func plan(swiftTarget: SwiftTargetBuildDescription) throws {
         // We need to iterate recursive dependencies because Swift compiler needs to see all the targets a target
@@ -1590,6 +1661,8 @@ public class BuildPlan {
                 if let includeDir = targetDescription.moduleMap?.parentDirectory {
                     arguments += ["-I", includeDir.pathString]
                 }
+            case .rust:
+                fatalError("TODO")
             }
         }
 
@@ -1633,6 +1706,8 @@ public class BuildPlan {
                 if let includeDir = targetDescription.moduleMap?.parentDirectory {
                     arguments += ["-I\(includeDir.pathString)"]
                 }
+            case .rust:
+                fatalError("TODO")
             }
         }
 

@@ -742,6 +742,41 @@ final class BuildPlanTests: XCTestCase {
         ])
     }
 
+    func testSwiftRustMixed() throws {
+        let fs = InMemoryFileSystem(emptyFiles:
+            "/Pkg/Sources/swiftexe/main.swift",
+            "/Pkg/Sources/rustlib/lib.rs",
+            "/Pkg/Sources/rustlib/foo.rs"
+        )
+
+        let diagnostics = DiagnosticsEngine()
+        let graph = loadPackageGraph(
+            fs: fs, diagnostics: diagnostics,
+            manifests: [
+                Manifest.createManifest(
+                    name: "Pkg",
+                    path: "/Pkg",
+                    url: "/Pkg",
+                    v: .v5,
+                    packageKind: .root,
+                    targets: [
+                        TargetDescription(name: "swiftexe", dependencies: ["rustlib"]),
+                        TargetDescription(name: "rustlib", dependencies: []),
+                    ]),
+            ]
+        )
+        XCTAssertNoDiagnostics(diagnostics)
+
+        let result = BuildPlanResult(plan: try BuildPlan(buildParameters: mockBuildParameters(), graph: graph, diagnostics: diagnostics, fileSystem: fs))
+        result.checkProductsCount(1)
+        result.checkTargetsCount(2)
+
+        let lib = try result.target(for: "rustlib").rustTarget()
+        XCTAssertEqual(lib.objects, [
+            AbsolutePath("/path/to/build/debug/rustlib.build/rustlib.o"),
+        ])
+    }
+
     func testREPLArguments() throws {
         let fs = InMemoryFileSystem(emptyFiles:
             "/Pkg/Sources/exe/main.swift",
@@ -2397,6 +2432,15 @@ fileprivate extension TargetBuildDescription {
     func clangTarget() throws -> ClangTargetBuildDescription {
         switch self {
         case .clang(let target):
+            return target
+        default:
+            throw Error.error("Unexpected \(self) type")
+        }
+    }
+
+    func rustTarget() throws -> RustcTargetBuildDescription {
+        switch self {
+        case .rust(let target):
             return target
         default:
             throw Error.error("Unexpected \(self) type")

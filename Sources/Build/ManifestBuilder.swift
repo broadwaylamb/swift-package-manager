@@ -59,6 +59,8 @@ public class LLBuildManifestBuilder {
                 createSwiftCompileCommand(desc)
             case .clang(let desc):
                 createClangCompileCommand(desc)
+            case .rust:
+                fatalError("TODO")
             }
         }
 
@@ -266,6 +268,8 @@ extension LLBuildManifestBuilder {
                 for object in target.objects {
                     inputs.append(file: object)
                 }
+            case .rust?:
+                fatalError("TODO")
             case nil:
                 fatalError("unexpected: target \(target) not in target map \(plan.targetMap)")
             }

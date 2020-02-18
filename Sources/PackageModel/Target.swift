@@ -310,6 +310,30 @@ public class ClangTarget: Target {
     }
 }
 
+public class RustcTarget: Target {
+
+    public init(
+        name: String,
+        bundleName: String? = nil,
+        platforms: [SupportedPlatform] = [],
+        sources: Sources,
+        resources: [Resource] = [],
+        dependencies: [Target.Dependency] = [],
+        buildSettings: BuildSettings.AssignmentTable = .init()
+    ) {
+        super.init(
+            name: name,
+            bundleName: bundleName,
+            platforms: platforms,
+            type: sources.computeTargetType(),
+            sources: sources,
+            resources: resources,
+            dependencies: dependencies,
+            buildSettings: buildSettings
+        )
+    }
+}
+
 public class BinaryTarget: Target {
 
     /// The original source of the binary artifact.

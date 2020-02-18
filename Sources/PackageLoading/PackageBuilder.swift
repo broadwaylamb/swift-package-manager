@@ -711,6 +711,16 @@ public final class PackageBuilder {
                 swiftVersion: try swiftVersion(),
                 buildSettings: buildSettings
             )
+        } else if sources.hasRustSources {
+            return RustcTarget(
+                name: potentialModule.name,
+                bundleName: bundleName,
+                platforms: self.platforms(),
+                sources: sources,
+                resources: resources,
+                dependencies: dependencies,
+                buildSettings: buildSettings
+            )
         } else {
             return ClangTarget(
                 name: potentialModule.name,
@@ -1143,6 +1153,10 @@ private extension Manifest {
 extension Sources {
     var hasSwiftSources: Bool {
         paths.first?.extension == "swift"
+    }
+
+    var hasRustSources: Bool {
+        paths.first?.extension == "rs"
     }
 
     var containsMixedLanguage: Bool {
